@@ -15,6 +15,14 @@ export function activate(context: vscode.ExtensionContext) {
       }
     )
   );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('myExtension.serialize', () => {
+      const textEditor = vscode.window.activeTextEditor;
+      console.log(textEditor);
+      // const webview = vscode.window.activeTextEditor!.webview;
+      // webview.postMessage('serialize');
+    })
+  );
 }
 
 class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument> {
@@ -22,7 +30,7 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
 
   public readonly onDidChangeCustomDocument: vscode.Event<vscode.CustomDocumentEditEvent<Draw2dDocument>> = this._onDidChangeCustomDocument.event;
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(private readonly context: vscode.ExtensionContext) { }
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -51,14 +59,18 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
       });
     };
 
-    const changeDocumentSubscription = document.onDidChangeContent(() => {
+    const changeDocumentSubscription = document.onDidChangeContent((e) => {
       updateWebview();
       this._onDidChangeCustomDocument.fire({
         document,
-        label: 'Edit',
-        undo: async () => { /* handle undo */ },
-        redo: async () => { /* handle redo */ },
+        undo: () => {
+          document.updateContent(e.content);
+        },
+        redo: () => {
+          document.updateContent(e.content);
+        }
       });
+      updateWebview();
     });
 
     webviewPanel.onDidDispose(() => {
@@ -72,6 +84,15 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
           document.updateContent(message.content);
           await document.save();
           break;
+        case 'edit':
+          this.updateTextDocument(document, message.content);
+          this._onDidChangeCustomDocument.fire({
+            document,
+            label: 'Edit',
+            undo: async () => { /* handle undo */ },
+            redo: async () => { /* handle redo */ },
+          });
+          break;
       }
     });
 
@@ -79,12 +100,11 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
   }
 
   async saveCustomDocument(document: Draw2dDocument, _cancellation: vscode.CancellationToken): Promise<void> {
-    await document.save();
+    await this.saveDocument(document, document.uri);
   }
 
   async saveCustomDocumentAs(document: Draw2dDocument, destination: vscode.Uri, _cancellation: vscode.CancellationToken): Promise<void> {
-    const newContent = document.content;
-    await vscode.workspace.fs.writeFile(destination, Buffer.from(newContent));
+    await this.saveDocument(document, destination);
   }
 
   async revertCustomDocument(document: Draw2dDocument, _cancellation: vscode.CancellationToken): Promise<void> {
@@ -93,18 +113,22 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
   }
 
   async backupCustomDocument(document: Draw2dDocument, context: vscode.CustomDocumentBackupContext, _cancellation: vscode.CancellationToken): Promise<vscode.CustomDocumentBackup> {
-    const backupUri = context.destination;
-    await this.saveCustomDocumentAs(document, backupUri, _cancellation);
-    return {
-      id: backupUri.toString(),
-      delete: async () => {
-        try {
-          await vscode.workspace.fs.delete(backupUri);
-        } catch {
-          // No-op if the file does not exist
-        }
-      },
-    };
+    return this.saveDocument(document, context.destination).then(() => {
+      return {
+        id: context.destination.toString(),
+        delete: () => vscode.workspace.fs.delete(context.destination)
+      };
+    });
+  }
+
+  private async saveDocument(document: Draw2dDocument, uri: vscode.Uri): Promise<void> {
+    const content = Buffer.from(document.content, 'utf8');
+    await vscode.workspace.fs.writeFile(uri, content);
+    this._onDidChangeCustomDocument.fire({
+      document,
+      undo: () => { /* handle undo */ },
+      redo: () => { /* handle redo */ }
+    });
   }
 
   private getHtmlForWebview(webview: vscode.Webview): string {
@@ -125,11 +149,24 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Draw2D Editor</title>
   <link href="${styleUri}" rel="stylesheet">
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
 </head>
 <body>
   <div id="canvas" style="width:100%; height:100vh; border:1px solid black;"></div>
 </body>
 </html>`;
   }
+
+  private async updateTextDocument(document: Draw2dDocument, content: string): Promise<void> {
+    const edit = new vscode.WorkspaceEdit();
+    const fullRange = new vscode.Range(
+      new vscode.Position(0, 0),
+      new vscode.Position(document.content.split('\n').length, 0)
+    );
+    edit.replace(document.uri, fullRange, content);
+    await vscode.workspace.applyEdit(edit);
+    document.content = content;
+    // await document.save();
+  }
+
 }

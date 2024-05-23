@@ -30,6 +30,10 @@ export class Draw2dDocument implements vscode.CustomDocument {
     return this._content;
   }
 
+  public set content(value: string) {
+    this._content = value;
+  }
+
   public dispose(): void {
     this._onDidDispose.fire();
   }

@@ -1,5 +1,10 @@
+// import { provideVSCodeDesignSystem, vsCodeDataGrid, vsCodeDataGridCell, vsCodeDataGridRow, vsCodeButton } from '@vscode/webview-ui-toolkit';
+import "./import-jquery";
+import "jquery-ui-bundle";
+import "jquery-ui-bundle/jquery-ui.css";
 import draw2d from 'draw2d';
 
+const vscode = acquireVsCodeApi();
 const canvas = new draw2d.Canvas("canvas");
 
 function createNode(name, x, y) {
@@ -9,8 +14,15 @@ function createNode(name, x, y) {
   rect.createPort("output", new draw2d.layout.locator.LeftLocator());
   rect.createPort("output", new draw2d.layout.locator.RightLocator());
   rect.setUserData({ name: name });
-  rect.setPosition(x, y);
+  rect.setPosition(x, y);  
   canvas.add(rect);
+  rect.on("move", function() {
+    console.log("Rectangle position changed to: ", rect.getPosition());
+    vscode.postMessage({
+      type: 'edit',
+      content: serialize(),
+    });
+  });
   return rect;
 }
 
@@ -23,6 +35,12 @@ window.addEventListener('message', event => {
       nodes.forEach(node => {
         createNode(node.name, node.x, node.y);
       });
+      break;
+    case 'serialize':
+      serialize();
+      break;
+    default:
+      console.log('Event received: '+message);
       break;
   }
 });
@@ -45,3 +63,10 @@ window.addEventListener('beforeunload', () => {
     content: serialize(),
   });
 });
+
+// canvas.on('figure:move', function() {
+//   vscode.postMessage({
+//     type: 'edit',
+//     content: serialize()
+//   });
+// });
