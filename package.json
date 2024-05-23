@@ -69,7 +69,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.13",
     "draw2d": "^1.0.38",
     "jquery": "^3.7.1",
     "jquery-ui-bundle": "^1.12.1-migrate"

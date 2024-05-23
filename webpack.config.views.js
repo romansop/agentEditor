@@ -2,7 +2,6 @@
 
 const path = require("path");
 const webpack = require("webpack");
-const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
 
 module.exports = (env, { mode }) => {
     const isDev = mode === "development";
@@ -78,7 +77,6 @@ module.exports = (env, { mode }) => {
             new webpack.ProvidePlugin({
                 React: "react",
             }),
-            isDev && new ReactRefreshWebpackPlugin(),
         ].filter(Boolean),
         devtool: isDev ? "inline-cheap-module-source-map" : false,
         infrastructureLogging: {
