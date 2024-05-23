@@ -80,6 +80,9 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       console.log("Message received from webview:", message);
       switch (message.type) {
+        case 'webviewLoaded':
+          updateWebview();
+          break;
         case 'save':
           document.updateContent(message.content);
           await document.save();
@@ -152,7 +155,8 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
   <script nonce="${nonce}" type="module" src="${scriptUri}"></script>
 </head>
 <body>
-  <div id="canvas" style="width:100%; height:100vh; border:1px solid black;"></div>
+  <div class="loader" id="loader"></div>
+  <div id="canvas"></div>
 </body>
 </html>`;
   }
@@ -166,7 +170,6 @@ class Draw2dEditorProvider implements vscode.CustomEditorProvider<Draw2dDocument
     edit.replace(document.uri, fullRange, content);
     await vscode.workspace.applyEdit(edit);
     document.content = content;
-    // await document.save();
   }
 
 }
