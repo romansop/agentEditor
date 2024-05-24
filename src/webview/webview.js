@@ -5,10 +5,13 @@ import "jquery-ui-bundle/jquery-ui.css";
 import draw2d from 'draw2d';
 
 const vscode = acquireVsCodeApi();
+// Documentation:
+// https://freegroup.github.io/draw2d/#/api/draw2d/canvas
 const canvas = new draw2d.Canvas("canvas");
 
 function adjustCanvasSize() {
   const canvasContainer = document.getElementsByTagName("html")[0];
+  // TODO: Min of container dimensions and dimensions of currently inserted elements + padding
   canvas.setDimension(canvasContainer.clientWidth-2, canvasContainer.clientHeight-2);
 }
 
